@@ -13,7 +13,7 @@ import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
 import org.hibernate.query.Query;
 
-import java.util.List;
+import java.util.*;
 
 public class SessionJPA {
 
@@ -36,6 +36,37 @@ public class SessionJPA {
             return list;
         }
     }
+
+    public static <T> void UpdateCarEngineByID(Class<T> cls,Engine eng, int id){
+        SessionFactory sesFactory =new Configuration().configure().buildSessionFactory();
+        try(Session session= sesFactory.openSession()){
+            session.beginTransaction();
+            //String hql2 = "update "+cls.getName()+" set eng="+objFind(Engine.class,9)+" where id=5";
+            String hql = "update "+cls.getName()+" set eng=:eng where id=:id";
+            Query query =  session.createQuery(hql);
+            query.setParameter("eng",eng);
+            query.setParameter("id",id);
+            int count = query.executeUpdate();
+            session.getTransaction().commit();
+            sesFactory.close();
+        }
+    }
+
+    public static  void UpdateCarEngineByID(String clsName,Engine eng, int id){
+        SessionFactory sesFactory =new Configuration().configure().buildSessionFactory();
+        try(Session session= sesFactory.openSession()){
+            session.beginTransaction();
+            String hql = "update "+ clsName+" set eng=:eng where id=:id";
+            Query query =  session.createQuery(hql);
+            query.setParameter("eng",eng);
+            query.setParameter("id",id);
+            System.out.println(hql);
+            int count = query.executeUpdate();
+            session.getTransaction().commit();
+            sesFactory.close();
+        }
+    }
+
     public static  <T> T  megreObj(T objClass) {
         SessionFactory SF=new Configuration().configure().buildSessionFactory();
         Session session= SF.openSession();
@@ -98,7 +129,7 @@ public class SessionJPA {
                                       S setValue,
                                       String whFieled,
                                       W whValue,
-                                      Class<T> cls )
+                                      Class<T> cls)
     {
         SessionFactory SF = new Configuration().configure().buildSessionFactory();
         try (Session session = SF.openSession()) {
@@ -115,6 +146,30 @@ public class SessionJPA {
         SF.close();
     }
 
+    public static  <S1,S2,W,T> void myQueryUpdate2(String setFieled1,
+                                              S1 setValue1,
+                                              String setFieled2,
+                                              S2 setValue2,
+                                              String whFieled,
+                                              W whValue,
+                                              Class<T> cls)
+    {
+        SessionFactory SF = new Configuration().configure().buildSessionFactory();
+        try (Session session = SF.openSession()) {
+            CriteriaBuilder builder = session.getCriteriaBuilder();
+            CriteriaUpdate<T> criteriaUpdate = builder.createCriteriaUpdate(cls);
+            Root<T> root = criteriaUpdate.from(cls);
+            criteriaUpdate.set(setFieled1,setValue1);
+            criteriaUpdate.set(setFieled2,setValue2);
+ //           criteriaUpdate.set(setFieled1,setValue1,setFieled2,setValue2);
+            criteriaUpdate.where(builder.equal(root.get(whFieled), whValue));
+            Transaction transaction = session.beginTransaction();
+            int count = session.createQuery(criteriaUpdate).executeUpdate();
+            System.out.println("количество обновленных записей: " + count);
+            transaction.commit();
+        }
+        SF.close();
+    }
     /**
      * метод обновляет одно поле таблицы связанной с калассом (сущностью)'cls',при выполнении двух условий
      * @param setFieled - обновляемое поле
@@ -142,10 +197,46 @@ public class SessionJPA {
             CriteriaBuilder builder = session.getCriteriaBuilder();
             CriteriaUpdate<T> criteriaUpdate = builder.createCriteriaUpdate(cls);
             Root<T> root = criteriaUpdate.from(cls);
+            criteriaUpdate.set(setFieled,setValue);
             Predicate wV1=builder.equal(root.get(whFieled1),whValue1);
             Predicate wV2=builder.equal(root.get(whFieled2),whValue2);
-            criteriaUpdate.set(setFieled,setValue);
-            criteriaUpdate.where(builder.and(wV1,wV2));
+            criteriaUpdate.where(builder.and(wV1));
+            criteriaUpdate.where(builder.and(wV2));
+            Transaction transaction = session.beginTransaction();
+            int count = session.createQuery(criteriaUpdate).executeUpdate();
+            System.out.println("количество обновленных записей: " + count);
+            transaction.commit();
+        }
+        SF.close();
+    }
+
+    /**
+     * метод реализует динамический запрос на обнавление
+     * @param mSet-коллекция значений(имя поля:значение)
+     * @param mWH-коллекция условий (имя поля:значение)
+     * @param cls -класс(сущность) связанный с таблицей в БД
+     * @param <T>
+     */
+    public static  <T> void myQueryUpdate(Map<String,Object> mSet,
+                                                   Map<String,Object> mWH,
+                                                   Class<T> cls)
+    {
+        SessionFactory SF = new Configuration().configure().buildSessionFactory();
+        try (Session session = SF.openSession()) {
+            CriteriaBuilder builder = session.getCriteriaBuilder();
+            CriteriaUpdate<T> criteriaUpdate = builder.createCriteriaUpdate(cls);
+            Root<T> root = criteriaUpdate.from(cls);
+            for (String key : mSet.keySet()) {
+                Object value = mSet.get(key);
+                criteriaUpdate.set(key,value);
+            }
+
+            for (String key : mWH.keySet()) {
+                Object value = mWH.get(key);
+                Predicate predicate=builder.equal(root.get(key),value);
+                criteriaUpdate.where(builder.and(predicate));
+            }
+
             Transaction transaction = session.beginTransaction();
             int count = session.createQuery(criteriaUpdate).executeUpdate();
             System.out.println("количество обновленных записей: " + count);
