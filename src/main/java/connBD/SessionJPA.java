@@ -97,7 +97,7 @@ public class SessionJPA {
     }
 
     /**
-     * метод возвращает объект сущность по id(PK)соответствующейтаблицы БД
+     * метод возвращает объектc по id(PK)соответствующейтаблицы БД
      * @param cls -класс
      * @param pKey -первичный ключ
      * @return - объект класса T
@@ -120,7 +120,7 @@ public class SessionJPA {
      * @param setValue - значение, которе требуется установить
      * @param whFieled - поле условия для обновления
      * @param whValue - значение поля условия
-     * @param cls -класс(сущность) связанный с таблицей в БД
+     * @param cls -класс(Entity) связанный с таблицей в БД
      * @param <S>
      * @param <W>
      * @param <T>
@@ -146,6 +146,20 @@ public class SessionJPA {
         SF.close();
     }
 
+    /**
+     * метод обновляет два поля таблицы, при выполнении условия
+     * @param setFieled1 - обновляемое поле 1
+     * @param setValue1 - новое значение поля 1
+     * @param setFieled2 обновляемое поле 2
+     * @param setValue2 - новое значение поля 2
+     * @param whFieled - поле условия для обновления
+     * @param whValue - значение поля условия
+     * @param cls -класс(Entity) связанный с таблицей в БД
+     * @param <S1>
+     * @param <S2>
+     * @param <W>
+     * @param <T>
+     */
     public static  <S1,S2,W,T> void myQueryUpdate2(String setFieled1,
                                               S1 setValue1,
                                               String setFieled2,
@@ -161,7 +175,6 @@ public class SessionJPA {
             Root<T> root = criteriaUpdate.from(cls);
             criteriaUpdate.set(setFieled1,setValue1);
             criteriaUpdate.set(setFieled2,setValue2);
- //           criteriaUpdate.set(setFieled1,setValue1,setFieled2,setValue2);
             criteriaUpdate.where(builder.equal(root.get(whFieled), whValue));
             Transaction transaction = session.beginTransaction();
             int count = session.createQuery(criteriaUpdate).executeUpdate();
@@ -178,7 +191,7 @@ public class SessionJPA {
      * @param whValue1 - значение поля условия 1
      * @param whFieled2 - поле условия 2 для обновления
      * @param whValue2- значение поля условия 2
-     * @param cls
+     * @param cls- класс(Entity) связанный с таблицей в БД
      * @param <S>
      * @param <W1>
      * @param <W2>
@@ -193,15 +206,18 @@ public class SessionJPA {
                                           Class<T> cls )
     {
         SessionFactory SF = new Configuration().configure().buildSessionFactory();
+
         try (Session session = SF.openSession()) {
             CriteriaBuilder builder = session.getCriteriaBuilder();
             CriteriaUpdate<T> criteriaUpdate = builder.createCriteriaUpdate(cls);
             Root<T> root = criteriaUpdate.from(cls);
             criteriaUpdate.set(setFieled,setValue);
+            List<Predicate> pr = new ArrayList<>();
             Predicate wV1=builder.equal(root.get(whFieled1),whValue1);
             Predicate wV2=builder.equal(root.get(whFieled2),whValue2);
-            criteriaUpdate.where(builder.and(wV1));
-            criteriaUpdate.where(builder.and(wV2));
+            pr.add(wV1);
+            pr.add(wV2);
+            criteriaUpdate.where(builder.and(pr.toArray(new Predicate[0])));
             Transaction transaction = session.beginTransaction();
             int count = session.createQuery(criteriaUpdate).executeUpdate();
             System.out.println("количество обновленных записей: " + count);
@@ -211,10 +227,10 @@ public class SessionJPA {
     }
 
     /**
-     * метод реализует динамический запрос на обнавление
-     * @param mSet-коллекция значений(имя поля:значение)
-     * @param mWH-коллекция условий (имя поля:значение)
-     * @param cls -класс(сущность) связанный с таблицей в БД
+     * метод реализует динамический запрос на обновление
+     * @param mSet-коллекция пар(имя поля:значение) для обновления
+     * @param mWH-коллекция пар(имя поля:значение) для условия
+     * @param cls -класс(Entity) связанный с таблицей в БД
      * @param <T>
      */
     public static  <T> void myQueryUpdate(Map<String,Object> mSet,
@@ -230,13 +246,13 @@ public class SessionJPA {
                 Object value = mSet.get(key);
                 criteriaUpdate.set(key,value);
             }
-
+            List<Predicate> pr = new ArrayList<>();
             for (String key : mWH.keySet()) {
                 Object value = mWH.get(key);
                 Predicate predicate=builder.equal(root.get(key),value);
-                criteriaUpdate.where(builder.and(predicate));
+                pr.add(predicate);
             }
-
+            criteriaUpdate.where(builder.and(pr.toArray(new Predicate[0])));
             Transaction transaction = session.beginTransaction();
             int count = session.createQuery(criteriaUpdate).executeUpdate();
             System.out.println("количество обновленных записей: " + count);
